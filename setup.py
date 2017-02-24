@@ -34,14 +34,18 @@ INSTALL_REQUIRES_REPLACEMENTS = {
 }
 
 INSTALL_REQUIRES = list()
+DEPENDENCY_LINKS = list()
 with open('requirements.txt') as requirements_file:
     for requirement in requirements_file:
         dependency = INSTALL_REQUIRES_REPLACEMENTS.get(
             requirement.strip(),
             requirement.strip(),
         )
-
-        INSTALL_REQUIRES.append(dependency)
+        if dependency.startswith("https://"):
+            DEPENDENCY_LINKS.append(dependency)
+            INSTALL_REQUIRES.append(dependency[dependency.find("egg=") + 4:].replace("-", "==", 1))
+        else:
+            INSTALL_REQUIRES.append(dependency)
 
 INSTALL_REQUIRES = list(set(INSTALL_REQUIRES))
 
@@ -76,6 +80,7 @@ setup(
     ],
     cmdclass={'test': PyTest},
     install_requires=INSTALL_REQUIRES,
+    dependency_links=DEPENDENCY_LINKS,
     tests_require=[
         'ethereum-serpent>=1.8.1',
     ],

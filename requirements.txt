@@ -13,7 +13,7 @@ statistics
 requests
 devp2p>=0.8.0
 rlp==0.4.6
-git+git://github.com/cdetrio/pyethereum@develop#egg=ethereum
+git+https://github.com/cdetrio/pyethereum.git/@develop#egg=ethereum-1.6.0
 pbkdf2
 scrypt
 pexpect

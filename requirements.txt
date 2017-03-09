@@ -11,8 +11,8 @@ werkzeug
 ipython>=3.0.0,<5.0.0
 statistics
 requests
-devp2p>=0.8.0
-rlp==0.4.6
+https://github.com/cdetrio/pydevp2p/tarball/develop#egg=devp2p-0.8.0
+rlp==0.4.7
 ethereum>=1.5.1
 pbkdf2
 scrypt

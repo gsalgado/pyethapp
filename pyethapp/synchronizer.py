@@ -302,6 +302,7 @@ class Synchronizer(object):
             return
 
         # check pow
+        # XXX: PoW-related
         if not t_block.header.check_pow():
             log.warn('check pow failed, should ban!')
             return

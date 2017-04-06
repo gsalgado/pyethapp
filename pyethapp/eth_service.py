@@ -230,6 +230,7 @@ class ChainService(WiredService):
     def add_mined_block(self, block):
         log.debug('adding mined block', block=block)
         assert isinstance(block, Block)
+        # XXX: PoW-related
         assert block.header.check_pow()
         if self.chain.add_block(block):
             log.debug('added', block=block, ts=time.time())
@@ -263,6 +264,10 @@ class ChainService(WiredService):
                     self.block_queue.get()
                     continue
                 # FIXME, this is also done in validation and in synchronizer for new_blocks
+                # XXX: PoW-related
+                # XXX: Looks like this code can't be reached because
+                # Synchronizer.receive_newblock() will only add a block to
+                # block_queue when its PoW is valid.
                 if not t_block.header.check_pow():
                     log.warn('invalid pow', block=t_block, FIXME='ban node')
                     sentry.warn_invalid(t_block, 'InvalidBlockNonce')

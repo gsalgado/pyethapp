@@ -1,0 +1,29 @@
+= Ideas =
+
+Refactor quorum to make it possible to use either their custom consensus
+mechanism or PoW by a command-line switch.
+
+
+= Issues running/testing =
+
+- After running setup.py develop I get rlp0.4.7, but devp2p requires <=0.4.6,
+  so installed 0.4.6 manually
+
+- On Ubuntu, the flake8 package is for python3, so it reports lots of errors
+
+- pytest is not in requirements.txt
+  maybe need a dev_requirements.txt?
+
+- $ pyethapp --profile testnet run
+  missing deps: pycryptodome>=3.3.1, bitcoin, tox, secp256k1==0.12.1,
+docutils>=0.3, backports.shutil_get_terminal_size, traitlets,
+simplegeneric>0.8, pickleshare, pyethash, pysha3, repoze.lru, ptyprocess>=0.5,
+greenlet>=0.4.9
+
+- in setup.py we have tests_require=[ethereum-serpent>=1.8.1], and
+  because of that it's impossible to run tests manually. After installing it
+  manually I was able to execute the tests by simply running 'pytest'
+
+- 'pytest -k test_logfilters_topics' to run a single test
+
+- 'pytest pyethapp/tests/test_jsonrpc.py' to run only tests in that file

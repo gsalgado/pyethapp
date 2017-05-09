@@ -1,6 +1,6 @@
 """ A simple way of interacting to a ethereum node through JSON RPC commands. """
 import logging
-import time
+import requests
 import warnings
 import json
 
@@ -10,10 +10,8 @@ from ethereum.keys import privtoaddr
 from ethereum.transactions import Transaction
 from ethereum.utils import denoms, int_to_big_endian, big_endian_to_int, normalize_address
 from ethereum._solidity import solidity_unresolved_symbols, solidity_library_symbol, solidity_resolve_symbols
-from tinyrpc.protocols.jsonrpc import JSONRPCErrorResponse, JSONRPCSuccessResponse
-from tinyrpc.protocols.jsonrpc import JSONRPCProtocol
-from tinyrpc.transports.http import HttpPostClientTransport
 
+from pyethapp import tinyrpc2
 from pyethapp.jsonrpc import address_encoder as _address_encoder
 from pyethapp.jsonrpc import (
     data_encoder, data_decoder, address_decoder, default_gasprice,
@@ -113,8 +111,43 @@ class JSONRPCClientReplyError(Exception):
     pass
 
 
+class HttpPostClientTransport(object):
+    """HTTP POST based client transport.
+
+    Requires :py:mod:`requests`. Submits messages to a server using the body of
+    an ``HTTP`` ``POST`` request. Replies are taken from the responses body.
+
+    :param endpoint: The URL to send ``POST`` data to.
+    :param kwargs: Additional parameters for :py:func:`requests.post`.
+    """
+    def __init__(self, endpoint, **kwargs):
+        self.endpoint = endpoint
+        self.request_kwargs = kwargs
+
+    def send_message(self, message, expect_reply=True):
+        """Send a message to the server and possibly receive a reply.
+
+        Sends a message to the connected server.
+
+        Messages must be strings, it is up to the sender to convert the
+        beforehand. A non-string value raises a :py:exc:`TypeError`.
+
+        This function will block until one reply has been received.
+
+        :param message: A string to send.
+        :return: A string containing the server reply.
+        """
+        if not isinstance(message, str):
+            raise TypeError('str expected')
+
+        r = requests.post(self.endpoint, data=message, **self.request_kwargs)
+
+        if expect_reply:
+            return r.content
+
+
 class JSONRPCClient(object):
-    protocol = JSONRPCProtocol()
+    protocol = tinyrpc2.JSONRPCProtocol()
 
     def __init__(self, host='127.0.0.1', port=4000, print_communication=True,
                  privkey=None, sender=None, use_ssl=False, transport=None):
@@ -373,9 +406,9 @@ class JSONRPCClient(object):
             print reply
 
         jsonrpc_reply = self.protocol.parse_reply(reply)
-        if isinstance(jsonrpc_reply, JSONRPCSuccessResponse):
+        if isinstance(jsonrpc_reply, tinyrpc2.JSONRPCSuccessResponse):
             return jsonrpc_reply.result
-        elif isinstance(jsonrpc_reply, JSONRPCErrorResponse):
+        elif isinstance(jsonrpc_reply, tinyrpc2.JSONRPCErrorResponse):
             raise JSONRPCClientReplyError(jsonrpc_reply.error)
         else:
             raise JSONRPCClientReplyError('Unknown type of JSONRPC reply')

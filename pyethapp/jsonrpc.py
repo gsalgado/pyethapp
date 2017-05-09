@@ -24,13 +24,7 @@ from ethereum.utils import (
 )
 from eth_protocol import ETHProtocol
 from ipc_rpc import bind_unix_listener, serve
-from tinyrpc.dispatch import public as public_
-from tinyrpc.dispatch import RPCDispatcher
-from tinyrpc.exc import BadRequestError, MethodNotFoundError
-from tinyrpc.protocols.jsonrpc import JSONRPCProtocol, JSONRPCInvalidParamsError
-from tinyrpc.server.gevent import RPCServerGreenlets
-from tinyrpc.transports import ServerTransport
-from tinyrpc.transports.wsgi import WsgiServerTransport
+import tinyrpc2
 
 logger = log = slogging.get_logger('jsonrpc')
 
@@ -48,7 +42,7 @@ def _fail_on_error_dispatch(self, request):
 
 PROPAGATE_ERRORS = False
 if PROPAGATE_ERRORS:
-    RPCDispatcher._dispatch = _fail_on_error_dispatch
+    tinyrpc2.RPCDispatcher._dispatch = _fail_on_error_dispatch
 
 
 # route logging messages
@@ -83,15 +77,15 @@ def public(f):
         try:
             inspect.getcallargs(f, *args, **kwargs)
         except TypeError as t:
-            raise JSONRPCInvalidParamsError(t)
+            raise tinyrpc2.JSONRPCInvalidParamsError(t)
         else:
             return f(*args, **kwargs)
     new_f.func_name = f.func_name
     new_f.func_doc = f.func_doc
-    return public_(new_f)
+    return tinyrpc2.public_(new_f)
 
 
-class LoggingDispatcher(RPCDispatcher):
+class LoggingDispatcher(tinyrpc2.RPCDispatcher):
 
     """A dispatcher that logs every RPC method call."""
 
@@ -124,7 +118,7 @@ class LoggingDispatcher(RPCDispatcher):
             log.error("Unknown/unhandled RPC method!", method=e.args[0])
 
 
-class IPCDomainSocketTransport(ServerTransport):
+class IPCDomainSocketTransport(object):
     """tinyrpc ServerTransport implementation for unix domain sockets.
     """
     def __init__(self, sockpath=None, queue_class=gevent.queue.Queue):
@@ -226,9 +220,9 @@ class IPCRPCServer(RPCServer):
             sockpath=self.ipcpath,
         )
 
-        self.rpc_server = RPCServerGreenlets(
+        self.rpc_server = tinyrpc2.RPCServerGreenlets(
             self.transport,
-            JSONRPCProtocol(),
+            tinyrpc2.JSONRPCProtocol(),
             self.dispatcher
         )
         self.default_block = 'latest'
@@ -273,7 +267,7 @@ class JSONRPCServer(RPCServer):
         for subdispatcher in self.subdispatcher_classes():
             subdispatcher.register(self)
 
-        transport = WsgiServerTransport(queue_class=gevent.queue.Queue,
+        transport = tinyrpc2.WsgiServerTransport(queue_class=gevent.queue.Queue,
                                         allow_origin=self.config['jsonrpc']['corsdomain'])
         # start wsgi server as a background-greenlet
         self.listen_port = self.config['jsonrpc']['listen_port']
@@ -282,9 +276,9 @@ class JSONRPCServer(RPCServer):
         self.wsgi_server = gevent.wsgi.WSGIServer(listener,
                                                   transport.handle, log=WSGIServerLogger)
         self.wsgi_thread = None
-        self.rpc_server = RPCServerGreenlets(
+        self.rpc_server = tinyrpc2.RPCServerGreenlets(
             transport,
-            JSONRPCProtocol(),
+            tinyrpc2.JSONRPCProtocol(),
             self.dispatcher
         )
         self.default_block = 'latest'
@@ -357,7 +351,7 @@ def quantity_decoder(data):
         except ValueError:
             success = False
     assert not success
-    raise BadRequestError('Invalid quantity encoding')
+    raise tinyrpc2.BadRequestError('Invalid quantity encoding')
 
 
 def quantity_encoder(i):
@@ -380,7 +374,7 @@ def data_decoder(data):
     try:
         return decode_hex(data[2:])
     except TypeError:
-        raise BadRequestError('Invalid data hex encoding', data[2:])
+        raise tinyrpc2.BadRequestError('Invalid data hex encoding', data[2:])
 
 
 def data_encoder(data, length=None):
@@ -400,7 +394,7 @@ def address_decoder(data):
     """Decode an address from hex with 0x prefix to 20 bytes."""
     addr = data_decoder(data)
     if len(addr) not in (20, 0):
-        raise BadRequestError('Addresses must be 20 or 0 bytes long')
+        raise tinyrpc2.BadRequestError('Addresses must be 20 or 0 bytes long')
     return addr
 
 
@@ -421,7 +415,7 @@ def block_hash_decoder(data):
     """Decode a block hash."""
     decoded = data_decoder(data)
     if len(decoded) != 32:
-        raise BadRequestError('Block hashes must be 32 bytes long')
+        raise tinyrpc2.BadRequestError('Block hashes must be 32 bytes long')
     return decoded
 
 
@@ -429,13 +423,13 @@ def tx_hash_decoder(data):
     """Decode a transaction hash."""
     decoded = data_decoder(data)
     if len(decoded) != 32:
-        raise BadRequestError('Transaction hashes must be 32 bytes long')
+        raise tinyrpc2.BadRequestError('Transaction hashes must be 32 bytes long')
     return decoded
 
 
 def bool_decoder(data):
     if not isinstance(data, bool):
-        raise BadRequestError('Parameter must be boolean')
+        raise tinyrpc2.BadRequestError('Parameter must be boolean')
     return data
 
 
@@ -530,7 +524,7 @@ def loglist_encoder(loglist):
 def filter_decoder(filter_dict, chain):
     """Decodes a filter as expected by eth_newFilter or eth_getLogs to a :class:`Filter`."""
     if not isinstance(filter_dict, dict):
-        raise BadRequestError('Filter must be an object')
+        raise tinyrpc2.BadRequestError('Filter must be an object')
     address = filter_dict.get('address', None)
     if is_string(address):
         addresses = [address_decoder(address)]
@@ -539,7 +533,7 @@ def filter_decoder(filter_dict, chain):
     elif address is None:
         addresses = None
     else:
-        raise JSONRPCInvalidParamsError('Parameter must be address or list of addresses')
+        raise tinyrpc2.JSONRPCInvalidParamsError('Parameter must be address or list of addresses')
     if 'topics' in filter_dict:
         topics = []
         for topic in filter_dict['topics']:
@@ -563,15 +557,15 @@ def filter_decoder(filter_dict, chain):
 
     try:
         from_block = quantity_decoder(from_block)
-    except BadRequestError:
+    except tinyrpc2.BadRequestError:
         if from_block not in ('earliest', 'latest', 'pending'):
-            raise JSONRPCInvalidParamsError('fromBlock must be block number, "earliest", "latest" '
+            raise tinyrpc2.JSONRPCInvalidParamsError('fromBlock must be block number, "earliest", "latest" '
                                             'or pending')
     try:
         to_block = quantity_decoder(to_block)
-    except BadRequestError:
+    except tinyrpc2.BadRequestError:
         if to_block not in ('earliest', 'latest', 'pending'):
-            raise JSONRPCInvalidParamsError('toBlock must be block number, "earliest", "latest" '
+            raise tinyrpc2.JSONRPCInvalidParamsError('toBlock must be block number, "earliest", "latest" '
                                             'or pending')
 
     # check order
@@ -582,7 +576,7 @@ def filter_decoder(filter_dict, chain):
     }
     range_ = [b if is_numeric(b) else block_id_dict[b] for b in (from_block, to_block)]
     if range_[0] > range_[1]:
-        raise JSONRPCInvalidParamsError('fromBlock must not be newer than toBlock')
+        raise tinyrpc2.JSONRPCInvalidParamsError('fromBlock must not be newer than toBlock')
 
     return LogFilter(chain, from_block, to_block, addresses, topics)
 
@@ -722,7 +716,7 @@ class Compilers(Subdispatcher):
         try:
             return self.compilers['solidity'](code)
         except KeyError:
-            raise MethodNotFoundError()
+            raise tinyrpc2.MethodNotFoundError()
 
     @public
     @encode_res(data_encoder)
@@ -730,7 +724,7 @@ class Compilers(Subdispatcher):
         try:
             return self.compilers['serpent'](code)
         except KeyError:
-            raise MethodNotFoundError()
+            raise tinyrpc2.MethodNotFoundError()
 
     @public
     @encode_res(data_encoder)
@@ -738,7 +732,7 @@ class Compilers(Subdispatcher):
         try:
             return self.compilers['lll'](code)
         except KeyError:
-            raise MethodNotFoundError()
+            raise tinyrpc2.MethodNotFoundError()
 
 
 class Miner(Subdispatcher):
@@ -1076,7 +1070,7 @@ class Chain(Subdispatcher):
         extend spec to support v,r,s signed transactions
         """
         if not isinstance(data, dict):
-            raise BadRequestError('Transaction must be an object')
+            raise tinyrpc2.BadRequestError('Transaction must be an object')
 
         def get_data_default(key, decoder, default=None):
             if key in data:
@@ -1170,7 +1164,7 @@ class Chain(Subdispatcher):
 
         # validate transaction
         if not isinstance(data, dict):
-            raise BadRequestError('Transaction must be an object')
+            raise tinyrpc2.BadRequestError('Transaction must be an object')
         to = address_decoder(data['to'])
         try:
             startgas = quantity_decoder(data['gas'])
@@ -1238,7 +1232,7 @@ class Chain(Subdispatcher):
 
         # validate transaction
         if not isinstance(data, dict):
-            raise BadRequestError('Transaction must be an object')
+            raise tinyrpc2.BadRequestError('Transaction must be an object')
         to = address_decoder(data['to'])
         try:
             startgas = quantity_decoder(data['gas'])
@@ -1577,7 +1571,7 @@ class FilterManager(Subdispatcher):
     @decode_arg('id_', quantity_decoder)
     def getFilterChanges(self, id_):
         if id_ not in self.filters:
-            raise BadRequestError('Unknown filter')
+            raise tinyrpc2.BadRequestError('Unknown filter')
         filter_ = self.filters[id_]
         logger.debug('filter found', filter=filter_)
         if isinstance(filter_, (BlockFilter, PendingTransactionFilter)):
@@ -1594,7 +1588,7 @@ class FilterManager(Subdispatcher):
     @encode_res(loglist_encoder)
     def getFilterLogs(self, id_):
         if id_ not in self.filters:
-            raise BadRequestError('Unknown filter')
+            raise tinyrpc2.BadRequestError('Unknown filter')
         filter_ = self.filters[id_]
         return filter_.logs
 

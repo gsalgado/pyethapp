@@ -25,7 +25,7 @@ from pyethapp.eth_service import ChainService
 from pyethapp.jsonrpc import Compilers, JSONRPCServer, quantity_encoder, address_encoder, data_decoder,   \
     data_encoder, default_gasprice, default_startgas
 from pyethapp.rpc_client import JSONRPCClient
-from tinyrpc.protocols.jsonrpc import JSONRPCProtocol
+from pyethapp.tinyrpc2 import JSONRPCProtocol
 from pyethapp.profiles import PROFILES
 from pyethapp.pow_service import PoWService
 from ethereum import _solidity

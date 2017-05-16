@@ -46,10 +46,12 @@ with open('requirements.txt') as requirements_file:
 
 INSTALL_REQUIRES = list(set(INSTALL_REQUIRES))
 
-DEPENDENCY_LINKS = []
+DEPENDENCY_LINKS = [
+    "https://github.com/gsalgado/tinyrpc/tarball/develop#egg=tinyrpc",
+    ]
 if os.environ.get("USE_PYETHEREUM_DEVELOP"):
     # Force installation of develop branches of devp2p and pyethereum.
-    DEPENDENCY_LINKS = [
+    DEPENDENCY_LINKS += [
         'http://github.com/ethereum/pydevp2p/tarball/develop#egg=devp2p-9.99.9',
         'http://github.com/ethereum/pyethereum/tarball/develop#egg=ethereum-9.99.9',
         ]

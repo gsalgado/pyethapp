@@ -27,7 +27,7 @@ def setup():
 
 
 def test_basics():
-    peer, proto, chain, cb_data, cb = setup()
+    _, proto, _, _, _ = setup()
 
     assert isinstance(proto, BaseProtocol)
 
@@ -41,14 +41,15 @@ def test_basics():
 
 
 def test_status():
-    peer, proto, chain, cb_data, cb = setup()
-    genesis = head = chain.blocks[-1]
+    peer, proto, _, cb_data, cb = setup()
+    head_hash = ('07bc8cdd99786c4f771022036e057aa048c244ae1d2aae33ea6f9e4fab6a7792').decode('hex')
+    chain_difficulty = 131072
 
     # test status
     proto.send_status(
-        chain_difficulty=head.chain_difficulty(),
-        chain_head_hash=head.hash,
-        genesis_hash=genesis.hash
+        chain_difficulty=chain_difficulty,
+        chain_head_hash=head_hash,
+        genesis_hash=head_hash
     )
     packet = peer.packets.pop()
     proto.receive_status_callbacks.append(cb)
@@ -57,10 +58,9 @@ def test_status():
     _p, _d = cb_data.pop()
     assert _p == proto
     assert isinstance(_d, dict)
-    assert _d['chain_difficulty'] == head.chain_difficulty()
-    print _d
-    assert _d['chain_head_hash'] == head.hash
-    assert _d['genesis_hash'] == genesis.hash
+    assert _d['chain_difficulty'] == chain_difficulty
+    assert _d['chain_head_hash'] == head_hash
+    assert _d['genesis_hash'] == head_hash
     assert 'eth_version' in _d
     assert 'network_id' in _d
 
